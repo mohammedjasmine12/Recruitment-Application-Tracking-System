@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS - Full Talent Suite</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+.kanban-col { min-height: 500px; }
+.card { cursor: grab; }
+</style>
+</head>
+<body class="bg-gray-100">
+<div class="flex h-screen">
+  <!-- Sidebar -->
+  <div class="w-64 bg-slate-900 text-white p-5">
+    <h1 class="text-2xl font-bold mb-8">Talent ATS</h1>
+    <nav class="space-y-2">
+      <button onclick="showTab('dashboard')" class="w-full text-left p-3 rounded hover:bg-slate-800 bg-slate-800" id="btn-dashboard">📊 Dashboard</button>
+      <button onclick="showTab('jobs')" class="w-full text-left p-3 rounded hover:bg-slate-800" id="btn-jobs">💼 Jobs (FR-2)</button>
+      <button onclick="showTab('careers')" class="w-full text-left p-3 rounded hover:bg-slate-800" id="btn-careers">🌐 Careers Page</button>
+      <button onclick="showTab('candidates')" class="w-full text-left p-3 rounded hover:bg-slate-800" id="btn-candidates">👥 Candidates</button>
+      <button onclick="showTab('pipeline')" class="w-full text-left p-3 rounded hover:bg-slate-800" id="btn-pipeline">🔄 Pipeline Board</button>
+      <button onclick="showTab('reports')" class="w-full text-left p-3 rounded hover:bg-slate-800" id="btn-reports">📈 Reports & Audit</button>
+    </nav>
+    <div class="mt-10 text-xs text-gray-400">
+      <p>Control Layer: FastAPI Routers</p>
+      <p>Service Layer: Business Logic</p>
+      <p>SQL Layer: SQLAlchemy + SQLite</p>
+      <p class="mt-2 text-green-400">Backend: :8000 | Frontend: :3000</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-1 overflow-auto p-6">
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <h2 class="text-3xl font-bold mb-6">Dashboard - ATS Overview</h2>
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-5 rounded shadow"><p class="text-gray-500">Total Candidates</p><p id="stat-total" class="text-3xl font-bold">0</p></div>
+        <div class="bg-white p-5 rounded shadow"><p class="text-gray-500">Open Jobs</p><p id="stat-jobs" class="text-3xl font-bold">0</p></div>
+        <div class="bg-white p-5 rounded shadow"><p class="text-gray-500">Avg Time to Hire</p><p id="stat-tth" class="text-3xl font-bold">0 days</p></div>
+        <div class="bg-white p-5 rounded shadow"><p class="text-gray-500">Hired This Month</p><p id="stat-hired" class="text-3xl font-bold">0</p></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white p-5 rounded shadow"><h3 class="font-bold mb-3">Source Effectiveness (Careers Page, Referral etc)</h3><div id="source-list"></div></div>
+        <div class="bg-white p-5 rounded shadow"><h3 class="font-bold mb-3">Pipeline Conversion</h3><div id="pipeline-stats"></div></div>
+      </div>
+    </div>
+
+    <!-- JOBS -->
+    <div id="tab-jobs" class="hidden">
+      <h2 class="text-3xl font-bold mb-6">Job Management (FR-2) - Draft → Published → Closed</h2>
+      <div class="bg-white p-5 rounded shadow mb-6">
+        <h3 class="font-bold mb-3">Create New Job</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <input id="job-title" placeholder="Job Title - e.g. Python Developer" class="border p-2 rounded">
+          <input id="job-location" placeholder="Location" class="border p-2 rounded">
+          <input id="job-skills" placeholder="Required Skills (comma)" class="border p-2 rounded col-span-2">
+          <textarea id="job-desc" placeholder="Job Description" class="border p-2 rounded col-span-2"></textarea>
+          <select id="job-status" class="border p-2 rounded"><option value="Open">Published (Open)</option><option value="Draft">Draft</option><option value="Closed">Closed</option></select>
+          <button onclick="createJob()" class="bg-slate-900 text-white p-2 rounded">Create Job</button>
+        </div>
+      </div>
+      <div id="jobs-list" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- CAREERS PAGE -->
+    <div id="tab-careers" class="hidden">
+      <h2 class="text-3xl font-bold mb-2">Careers Page (Public) - Scope Point</h2>
+      <p class="text-gray-600 mb-6">Candidate sees published jobs and applies with resume</p>
+      <div id="careers-list" class="space-y-4"></div>
+    </div>
+
+    <!-- CANDIDATES -->
+    <div id="tab-candidates" class="hidden">
+      <h2 class="text-3xl font-bold mb-6">Candidate Management + Resume Upload</h2>
+      <div id="candidates-list" class="grid gap-3"></div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div id="tab-pipeline" class="hidden">
+      <h2 class="text-3xl font-bold mb-2">Pipeline Board - Configurable (Applied → Hired)</h2>
+      <p class="text-sm text-gray-600 mb-4">Features: Notes, Ratings, Feedback, Audit Trail</p>
+      <div class="flex gap-3 overflow-x-auto">
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-blue-100 p-2 rounded mb-3">Applied</h3><div id="col-Applied"></div></div>
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-yellow-100 p-2 rounded mb-3">Screening</h3><div id="col-Screening"></div></div>
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-purple-100 p-2 rounded mb-3">Interview</h3><div id="col-Interview"></div></div>
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-orange-100 p-2 rounded mb-3">Offer</h3><div id="col-Offer"></div></div>
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-green-100 p-2 rounded mb-3">Hired</h3><div id="col-Hired"></div></div>
+        <div class="kanban-col bg-white rounded shadow p-3 w-64 flex-shrink-0"><h3 class="font-bold text-center bg-red-100 p-2 rounded mb-3">Rejected</h3><div id="col-Rejected"></div></div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="tab-reports" class="hidden">
+      <h2 class="text-3xl font-bold mb-6">Reports + Audit Trail (FR-9)</h2>
+      <div class="bg-white p-5 rounded shadow"><h3 class="font-bold">Recent Activities - Audit Log</h3><div id="audit-log" class="mt-3 space-y-2 text-sm"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+function showTab(name){
+  ['dashboard','jobs','careers','candidates','pipeline','reports'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.add('hidden');
+    document.getElementById('btn-'+t).classList.remove('bg-slate-800');
+  });
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  document.getElementById('btn-'+name).classList.add('bg-slate-800');
+  if(name==='dashboard') loadDashboard();
+  if(name==='jobs') loadJobs();
+  if(name==='careers') loadCareers();
+  if(name==='candidates') loadCandidates();
+  if(name==='pipeline') loadPipeline();
+  if(name==='reports') loadReports();
+}
+
+async function loadDashboard(){
+  try{
+    const res = await fetch(API+'/dashboard/stats');
+    const data = await res.json();
+    document.getElementById('stat-total').innerText = data.total_candidates || 0;
+    document.getElementById('stat-jobs').innerText = data.open_jobs || 0;
+    document.getElementById('stat-tth').innerText = (data.avg_time_to_hire || 0) + ' days';
+    document.getElementById('stat-hired').innerText = data.hired_count || 0;
+    document.getElementById('source-list').innerHTML = Object.entries(data.source_effectiveness || {}).map(([k,v])=>`<div class="flex justify-between border-b py-1"><span>${k}</span><b>${v}</b></div>`).join('') || 'No data yet';
+    document.getElementById('pipeline-stats').innerHTML = Object.entries(data.pipeline_conversion || {}).map(([k,v])=>`<div class="flex justify-between border-b py-1"><span>${k}</span><b>${v}</b></div>`).join('') || 'No data yet';
+  }catch(e){ console.log(e); }
+}
+
+async function createJob(){
+  const payload = {
+    title: document.getElementById('job-title').value,
+    location: document.getElementById('job-location').value,
+    required_skills: document.getElementById('job-skills').value,
+    description: document.getElementById('job-desc').value,
+    status: document.getElementById('job-status').value
+  };
+  if(!payload.title) return alert('Title required');
+  await fetch(API+'/jobs', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  alert('Job Created! Control Layer -> Service Layer -> SQL Layer saved');
+  loadJobs();
+}
+
+async function loadJobs(){
+  const res = await fetch(API+'/jobs'); const jobs = await res.json();
+  document.getElementById('jobs-list').innerHTML = jobs.map(j=>`
+    <div class="bg-white p-4 rounded shadow">
+      <div class="flex justify-between"><b>${j.title}</b><span class="text-xs px-2 py-1 rounded ${j.status==='Open'?'bg-green-100':'bg-gray-200'}">${j.status}</span></div>
+      <p class="text-sm text-gray-600">${j.location} | Skills: ${j.required_skills}</p>
+      <p class="text-xs mt-2">${j.description?.substring(0,100)}</p>
+      <p class="text-xs text-gray-400 mt-2">Audit: ${new Date(j.created_at).toLocaleString()}</p>
+    </div>
+  `).join('');
+}
+
+async function loadCareers(){
+  const res = await fetch(API+'/jobs'); const jobs = await res.json();
+  const open = jobs.filter(j=>j.status==='Open');
+  document.getElementById('careers-list').innerHTML = open.map(j=>`
+    <div class="bg-white p-5 rounded shadow">
+      <h3 class="font-bold text-lg">${j.title} - ${j.location}</h3>
+      <p class="text-sm my-2">${j.description}</p>
+      <p class="text-xs text-blue-600">Skills: ${j.required_skills}</p>
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        <input id="cname-${j.id}" placeholder="Your Name" class="border p-2 rounded">
+        <input id="cemail-${j.id}" placeholder="Your Email" class="border p-2 rounded">
+        <input id="csource-${j.id}" placeholder="Source (Careers Page / Referral)" value="Careers Page" class="border p-2 rounded">
+        <input id="cskills-${j.id}" placeholder="Your Skills" class="border p-2 rounded">
+        <textarea id="cresume-${j.id}" placeholder="Paste Resume Text (Resume Upload sim)" class="border p-2 rounded col-span-2"></textarea>
+        <button onclick="applyJob(${j.id})" class="bg-green-600 text-white p-2 rounded col-span-2">Apply - Will trigger Email Notification (sim)</button>
+      </div>
+    </div>
+  `).join('') || '<p>No open jobs. Create one in Jobs tab.</p>';
+}
+
+async function applyJob(jobId){
+  const payload = {
+    job_id: jobId,
+    name: document.getElementById(`cname-${jobId}`).value,
+    email: document.getElementById(`cemail-${jobId}`).value,
+    source: document.getElementById(`csource-${jobId}`).value,
+    resume_text: document.getElementById(`cresume-${jobId}`).value,
+    skills: document.getElementById(`cskills-${jobId}`).value
+  };
+  const res = await fetch(API+'/candidates/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const data = await res.json();
+  if(res.ok) alert('Applied! '+ (data.message||'') + ' Check Pipeline tab!');
+  else alert('Error: '+ JSON.stringify(data));
+  loadDashboard();
+}
+
+async function loadCandidates(){
+  const res = await fetch(API+'/candidates'); const list = await res.json();
+  document.getElementById('candidates-list').innerHTML = list.map(c=>`
+    <div class="bg-white p-4 rounded shadow flex justify-between">
+      <div><b>${c.name}</b> - ${c.email} <span class="text-xs bg-blue-100 px-2 rounded">${c.source}</span><p class="text-xs text-gray-600">Skills: ${c.skills} | Resume: ${c.resume_text?.substring(0,80)}...</p></div>
+      <div class="text-xs text-gray-400">Audit: ${new Date(c.created_at).toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+async function loadPipeline(){
+  const res = await fetch(API+'/applications'); const apps = await res.json();
+  const cols = ['Applied','Screening','Interview','Offer','Hired','Rejected'];
+  cols.forEach(col=> document.getElementById('col-'+col).innerHTML='');
+  apps.forEach(a=>{
+    const el = document.createElement('div');
+    el.className='card bg-gray-50 border p-3 rounded mb-2';
+    el.innerHTML=`
+      <b class="text-sm">${a.candidate_name || 'Candidate #'+a.candidate_id}</b>
+      <p class="text-xs">Job #${a.job_id} | Rating: ${a.rating || 0}/5</p>
+      <div class="mt-2 flex gap-1">
+        <select id="status-${a.id}" class="text-xs border rounded p-1"><option>Applied</option><option>Screening</option><option>Interview</option><option>Offer</option><option>Hired</option><option>Rejected</option></select>
+        <button onclick="moveStage(${a.id})" class="text-xs bg-slate-900 text-white px-2 rounded">Move</button>
+      </div>
+      <div class="mt-2">
+        <input id="rating-${a.id}" type="number" min="1" max="5" placeholder="Rating" class="text-xs border p-1 w-16 rounded">
+        <input id="note-${a.id}" placeholder="Notes / Feedback" class="text-xs border p-1 w-32 rounded">
+        <button onclick="addFeedback(${a.id})" class="text-xs bg-blue-600 text-white px-2 rounded">Save</button>
+      </div>
+      <p class="text-xs text-gray-500 mt-1">${a.notes||''}</p>
+    `;
+    const colEl = document.getElementById('col-'+(a.stage || 'Applied'));
+    if(colEl) colEl.appendChild(el);
+    const sel = el.querySelector(`#status-${a.id}`); if(sel) sel.value = a.stage;
+  });
+}
+
+async function moveStage(id){
+  const newStage = document.getElementById(`status-${id}`).value;
+  await fetch(API+`/applications/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({stage:newStage})});
+  loadPipeline(); loadDashboard();
+}
+
+async function addFeedback(id){
+  const rating = document.getElementById(`rating-${id}`).value;
+  const notes = document.getElementById(`note-${id}`).value;
+  await fetch(API+`/applications/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({rating: rating?parseInt(rating):null, notes})});
+  alert('Notes/Rating saved - Audit updated');
+  loadPipeline();
+}
+
+async function loadReports(){
+  const res = await fetch(API+'/applications'); const apps = await res.json();
+  document.getElementById('audit-log').innerHTML = apps.slice(-10).reverse().map(a=>`<div class="border-b py-1">Application #${a.id} - ${a.candidate_name} moved to <b>${a.stage}</b> at ${new Date(a.updated_at||a.created_at).toLocaleString()} | Rating: ${a.rating||0} | Notes: ${a.notes||''}</div>`).join('') || 'No activities';
+}
+
+showTab('dashboard');
+</script>
+</body>
+</html>
